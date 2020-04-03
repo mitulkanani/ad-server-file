@@ -1,4 +1,6 @@
 (async function() {
+  // var URL = `http://localhost:8080`;
+  var URL = `https://adserverbackend.onrender.com/`;
   var styles = `
    .adsbyadserver{
      display: inline-block;
@@ -26,20 +28,20 @@
   styleSheet.type = "text/css";
   styleSheet.innerText = styles;
   document.head.appendChild(styleSheet);
+  var servedIds = [];
   var adObject = document.getElementsByClassName("adsbyadserver");
   if (adObject.length > 0) {
     var xhr = [];
     (async function loop() {
       // Set up our HTTP request
       // Setup our listener to process completed requests
-
       // const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       for (let i = 0; i < adObject.length; i++) {
         const adObjectRender = adObject[i].getAttribute("data-ad-client");
         if (adObjectRender !== undefined && adObjectRender !== "") {
           xhr[i] = new XMLHttpRequest();
           // await delay(Math.random() * 1000);
-          await xhr[i].open("POST", "https://adserverbackend.onrender.com/");
+          await xhr[i].open("POST", URL);
           await xhr[i].setRequestHeader(
             "Content-type",
             "application/x-www-form-urlencoded"
@@ -63,23 +65,33 @@
               var image = document.createElement("img");
               image.className = "adserver-img";
               const jsonObj = JSON.parse(xhr[i].response);
-              if (xhr[i].status >= 200 && xhr[i].status < 300) {
-                // Setting up div height and width
-                adServerContainer.style.width = `${jsonObj.data.width}px`;
-                adServerContainer.style.height = `${jsonObj.data.height}px`;
-
-                // Setting up image for adserver
-                adServerLink.href = `${jsonObj.data.url}`;
-                adServerLink.target = "_blank";
-                image.src = `${jsonObj.data.banner}`;
-              } else {
-                image.alt = `${jsonObj.errorMessage}`;
+              if(!servedIds.includes(jsonObj.data.id)) {
+                servedIds.push(jsonObj.data.id);
+                if (xhr[i].status >= 200 && xhr[i].status < 300) {
+                  // Setting up div height and width
+                  adServerContainer.style.width = `${jsonObj.data.width}px`;
+                  adServerContainer.style.height = `${jsonObj.data.height}px`;
+  
+                  // Setting up image for adserver
+                  adServerLink.href = `${jsonObj.data.url}`;
+                  adServerLink.target = "_blank";
+                  image.src = `${jsonObj.data.banner}`;
+                } else {
+                  image.alt = `${jsonObj.errorMessage}`;
+                }
+                adServerLink.appendChild(image);
+                adServerContainer.append(adServerLink);
+                // eslint-disable-next-line
+                let value = parseInt(`${jsonObj.data.adPosition}`);
+                adObject[value].appendChild(adServerContainer);
+                let report = new XMLHttpRequest();
+                report.open("POST", `${URL}/report`);
+                report.setRequestHeader(
+                  "Content-type",
+                  "application/x-www-form-urlencoded"
+                );
+                report.send(`media=${jsonObj.data.id}&campaign=${jsonObj.data.campaignId}`)
               }
-              adServerLink.appendChild(image);
-              adServerContainer.append(adServerLink);
-              // eslint-disable-next-line
-              let value = parseInt(`${jsonObj.data.adPosition}`);
-              adObject[value].appendChild(adServerContainer);
             }
           };
           await xhr[i].send(`adZoneCode=${adObjectRender}&adPosition=${i}`);
